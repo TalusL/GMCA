@@ -233,7 +233,7 @@ public class GMCA {
 
         System.out.println("公钥证书存取前后对比:" + Arrays.equals(certificate1.getEncoded(), certificate.getEncoded()));
 
-        System.out.println("私钥存取前后对比:" + Arrays.equals(privateKey1.getEncoded(), privateKey1.getEncoded()));
+        System.out.println("私钥存取前后对比:" + Arrays.equals(privateKey.getEncoded(), privateKey1.getEncoded()));
 
         System.out.println("=============测试国密证书PKCS12 KeyStore存取=============");
 
