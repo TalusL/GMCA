@@ -5,14 +5,26 @@ import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.engines.SM2Engine;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.crypto.params.ParametersWithRandom;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
+import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.X509KeyUsage;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECNamedCurveGenParameterSpec;
+import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.encoders.Base64;
 import org.bouncycastle.util.encoders.Hex;
 
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
 import javax.security.auth.x500.X500Principal;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -27,17 +39,25 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Random;
+import java.util.Set;
 
 public class GMCA {
     static {
         Security.addProvider(new BouncyCastleProvider());
+        BouncyCastleProvider bc = new BouncyCastleProvider();
+        Set<Provider.Service> services = bc.getServices();
+        for (Provider.Service s:services){
+            if (s.toString().toUpperCase().contains("CIPHER")) System.out.println(s.toString());
+        }
     }
 
     public static void main(String[] args) throws Exception {
         genGMCACert();
         genCertWithCaSign();
         testDigitalSign();
+        testSM2EcDc();
         testSaveGMKeyStore();
+
     }
 
     public static void genGMCACert() throws Exception {
@@ -201,6 +221,58 @@ public class GMCA {
         System.out.println("exceptionVerifyResult:" + exceptionResult);
 
         System.out.println("=============测试国密证书数字签名=============");
+    }
+
+
+    public static void testSM2EcDc() throws Exception {
+
+        System.out.println("=============测试国密SM2加解密=============");
+
+        //从证书获取公钥
+        CertificateFactory certificateFactory = CertificateFactory.getInstance("X509", "BC");
+        Certificate certificate = certificateFactory.generateCertificate(new FileInputStream("custCert.cer"));
+        PublicKey publicKey = certificate.getPublicKey();
+        //获取加密参数
+        BCECPublicKey localECPublicKey = (BCECPublicKey)publicKey;
+        ECParameterSpec localECParameterSpec = localECPublicKey.getParameters();
+        ECDomainParameters localECDomainParameters = new ECDomainParameters(
+                localECParameterSpec.getCurve(), localECParameterSpec.getG(),
+                localECParameterSpec.getN());
+        ECPublicKeyParameters localECPublicKeyParameters = new ECPublicKeyParameters(localECPublicKey.getQ(),
+                localECDomainParameters);
+        //待加密数据
+        byte[] ebs = "123sssss测试".getBytes("UTF-8");
+
+        System.out.println("原文:"+new String(ebs));
+        //初始化加密引擎
+        SM2Engine sm2EncEngine = new SM2Engine();
+        sm2EncEngine.init(true, new ParametersWithRandom(localECPublicKeyParameters));
+        //加密
+        byte[] bs =  sm2EncEngine.processBlock(ebs,0,ebs.length);
+        String es = Base64.toBase64String(bs);
+        System.out.println("密文:"+es);
+
+        //获取私钥
+        PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(readFile("custPrivateKey"));
+        KeyFactory keyFactory = KeyFactory.getInstance("EC");
+        PrivateKey privateKey = keyFactory.generatePrivate(pkcs8EncodedKeySpec);
+        //获取解密参数
+        BCECPrivateKey sm2PriK = (BCECPrivateKey)privateKey;
+        ECParameterSpec ecParameterSpec = sm2PriK.getParameters();
+        ECDomainParameters ecDomainParameters = new ECDomainParameters(
+                ecParameterSpec.getCurve(), ecParameterSpec.getG(),
+                ecParameterSpec.getN());
+        ECPrivateKeyParameters localECPrivateKeyParameters = new ECPrivateKeyParameters(
+                sm2PriK.getD(), ecDomainParameters);
+        //初始化解密引擎
+        SM2Engine sm2DcEngine = new SM2Engine();
+        sm2EncEngine.init(true, new ParametersWithRandom(localECPublicKeyParameters));
+        sm2DcEngine.init(false, localECPrivateKeyParameters);
+        bs = Base64.decode(es.getBytes("Utf-8"));
+        byte[] b = sm2DcEngine.processBlock(bs,0,bs.length);
+        System.out.println("明文:"+new String(b));
+
+        System.out.println("=============测试国密SM2加解密=============");
     }
 
     public static void testSaveGMKeyStore() throws Exception {
