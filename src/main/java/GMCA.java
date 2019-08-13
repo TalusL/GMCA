@@ -73,7 +73,7 @@ public class GMCA {
 
         System.out.println("CA PrivateKey:" + Base64.toBase64String(privKey.getEncoded()));
 
-        X500Principal iss = new X500Principal("CN=G4B GM ROOT CA,OU=g4b,C=CN,S=Guangdong,O=g4b");
+        X500Principal iss = new X500Principal("CN=test GM ROOT CA,OU=test,C=CN,S=Guangdong,O=test");
 
         ContentSigner sigGen = new JcaContentSignerBuilder("SM3withSM2").setProvider("BC").build(privKey);
         X509v3CertificateBuilder certGen = new JcaX509v3CertificateBuilder(
@@ -89,8 +89,8 @@ public class GMCA {
                 .addExtension(new ASN1ObjectIdentifier("2.5.29.17"), true,
                         new GeneralNames(new GeneralName[]
                                 {
-                                        new GeneralName(GeneralName.rfc822Name, "gmca@g4b.cn"),
-                                        new GeneralName(GeneralName.dNSName, "ca.g4b.cn")
+                                        new GeneralName(GeneralName.rfc822Name, "gmca@test.cn"),
+                                        new GeneralName(GeneralName.dNSName, "ca.test.cn")
                                 }));
 
 
@@ -121,6 +121,7 @@ public class GMCA {
 
         PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(readFile("CAPrikey"));
 
+        
         PrivateKey caPrivateKey = keyFactory.generatePrivate(pkcs8EncodedKeySpec);
 
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X509", "BC");
@@ -143,7 +144,7 @@ public class GMCA {
                 BigInteger.valueOf(new Random().nextInt()),
                 new Date(System.currentTimeMillis() - 50000),
                 new Date(System.currentTimeMillis() + 50000),
-                new X500Principal("CN=g4bTestCert"),
+                new X500Principal("CN=TestCert"),
                 pubKey).addExtension(new ASN1ObjectIdentifier("2.5.29.15"), true,
                 new X509KeyUsage(X509KeyUsage.digitalSignature | X509KeyUsage.nonRepudiation))
                 .addExtension(new ASN1ObjectIdentifier("2.5.29.37"), true,
@@ -151,8 +152,8 @@ public class GMCA {
                 .addExtension(new ASN1ObjectIdentifier("2.5.29.17"), true,
                         new GeneralNames(new GeneralName[]
                                 {
-                                        new GeneralName(GeneralName.rfc822Name, "gmca@g4b.cn"),
-                                        new GeneralName(GeneralName.dNSName, "ca.g4b.cn")
+                                        new GeneralName(GeneralName.rfc822Name, "gmca@test.cn"),
+                                        new GeneralName(GeneralName.dNSName, "ca.test.cn")
                                 }));
 
 
